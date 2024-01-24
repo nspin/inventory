@@ -433,29 +433,10 @@ macro_rules! __do_submit {
                 unsafe { $crate::ErasedNode::submit(__INVENTORY.value, &__INVENTORY) }
             }
 
-            // Linux/ELF: https://www.exploit-db.com/papers/13234
-            //
-            // macOS: https://blog.timac.org/2016/0716-constructor-and-destructor-attributes/
-            //
-            // Why .CRT$XCU on Windows? https://www.cnblogs.com/sunkang/archive/2011/05/24/2055635.html
-            // 'I'=C init, 'C'=C++ init, 'P'=Pre-terminators and 'T'=Terminators
-            $($used)+
-            #[cfg_attr(
-                any(
-                    target_os = "linux",
-                    target_os = "android",
-                    target_os = "dragonfly",
-                    target_os = "freebsd",
-                    target_os = "haiku",
-                    target_os = "illumos",
-                    target_os = "netbsd",
-                    target_os = "openbsd",
-                ),
-                link_section = ".init_array",
-            )]
-            #[cfg_attr(any(target_os = "macos", target_os = "ios"), link_section = "__DATA,__mod_init_func")]
-            #[cfg_attr(windows, link_section = ".CRT$XCU")]
-            static __CTOR: unsafe extern "C" fn() = __ctor;
+            $crate::__assign_static_to_section! {
+                $($used)+
+                static __CTOR: unsafe extern "C" fn() = __ctor;
+            }
         };
     };
 
@@ -471,5 +452,50 @@ macro_rules! __do_submit {
             used={ #[used] }
             $($value)*
         }
+    };
+}
+
+// Not public API.
+#[cfg(not(feature = "force-init-array-section"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __assign_static_to_section {
+    ($item:stmt) => {
+        // Linux/ELF: https://www.exploit-db.com/papers/13234
+        //
+        // macOS: https://blog.timac.org/2016/0716-constructor-and-destructor-attributes/
+        //
+        // Why .CRT$XCU on Windows? https://www.cnblogs.com/sunkang/archive/2011/05/24/2055635.html
+        // 'I'=C init, 'C'=C++ init, 'P'=Pre-terminators and 'T'=Terminators
+        #[cfg_attr(
+            any(
+                target_os = "linux",
+                target_os = "android",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "haiku",
+                target_os = "illumos",
+                target_os = "netbsd",
+                target_os = "openbsd",
+            ),
+            link_section = ".init_array"
+        )]
+        #[cfg_attr(
+            any(target_os = "macos", target_os = "ios"),
+            link_section = "__DATA,__mod_init_func"
+        )]
+        #[cfg_attr(windows, link_section = ".CRT$XCU")]
+        $item
+    };
+}
+
+// Not public API.
+#[cfg(feature = "force-init-array-section")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __assign_static_to_section {
+    ($item:stmt) => {
+        #[link_section = ".init_array"]
+        $item
     };
 }

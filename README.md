@@ -104,7 +104,9 @@ registered at the time that dlopen occurs.
 
 Platform support includes Linux, macOS, iOS, FreeBSD, Android, Windows, and a
 few others. Beyond this, other platforms will simply find that no plugins have
-been registered.
+been registered. Alternatively, unsupported platforms may use the
+`force-init-array-section` feature to explicitly assign constructors to the
+`.init_array` section.
 
 For a different approach to plugin registration that *does not* involve
 life-before-main, see the [`linkme`] crate.
